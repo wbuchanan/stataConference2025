@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+
+	<title>Boosting Performance of Regular Expressions</title>
+
+	<meta name="description" content="Presentation deck for 2025 Stata Conference Talk">
+	<meta name="author" content="Billy Buchanan">
+
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<link rel="stylesheet" href="dist/reset.css">
+	<link rel="stylesheet" href="dist/reveal.css">
+	<link rel="stylesheet" href="dist/theme/night.css" id="theme">
+
+	<!-- Theme used for syntax highlighting of code -->
+	<link rel="stylesheet" href="plugin/highlight/monokai.css">
+</head>
+
+<body>
+
+<div class="reveal">
+
+	<!-- Any section element inside of this container is displayed as a slide -->
+	<div class="slides">
+		<section>
+			<h2>Boosting Performance of Regular Expressions</h2>
+			<h4><a href="https://github.com/wbuchanan" target="_blank">Billy Buchanan</a></h4>
+			<h4>Senior Research Scientist</h4>
+			<h4><a href="https://www.sagcorp.com" target="_blank">SAG Corporation</a></h4>
+			<h4><a href="https://wbuchanan.github.io/stataConference2025">https://wbuchanan.github.io/stataConference2025</a></h4>
+		</section>
+		<section>
+			<!-- Blank slide -->
+			<section>
+				<h3>BLUF</h3>
+				<ul>
+					<li>Use Boost for Speed and Unicode for Robustness</li>
+					<li>Avoid Greedy Quantifiers When Possible</li>
+					<li>Use Non-Capture Groups When Capturing is Unnecessary</li>
+					<li>Factor Out Common Elements</li>
+					<li>Use Possessive Quantifiers Carefully</li>
+					<li>The Order of Alternatives Matters</li>
+				</ul>
+				<aside class="notes">
+					<ul>
+						<li>Some of this may make no sense to you at the moment, which is fine if you don't work with regular expressions regularly.</li>
+						<li>The terms, relevant syntax, and examples should hopefully clarify this.</li>
+						<li>If nothing else, knowing these strategies should help you write more efficient regular expressions moving forward</li>
+					</ul>
+				</aside>
+			</section>
+			<section data-autoslide="3500">
+				<h3>Why is any of this important or useful?</h3>
+			</section>
+			<section>
+				<ul class="r-fit-text">
+					<li>Determine if a command includes an if or in statement - <br><pre><code>" i[fn]{1}\s+.*?(?=, *[a-zA-Z]|\$)"</code></pre></li>
+					<li>Capture all text until the start of options - <br><pre><code>"^(.*?)(?![^()]*\)),"</code></pre></li>
+					<li>Determine if a command includes options - <br><pre><code>`"(?:(?!["\(]).)*?,\s*(?![^\(]*\))(.*)\$"'</code></pre></li>
+					<li>All are used in <a href="https://wbuchanan.github.io/crossvalidate/" target="_blank">crossvalidate (Buchanan & Brownell, 2024)</a></li>
+				</ul>
+				<aside class="notes">
+					<ul>
+						<li>If you want to handle some of the syntactical complexity for the users of your programs, this is an easy way to do it.</li>
+						<li>Regular expressions are also extremely powerful and useful for working with string data.</li>
+						<li>You can also see how I've learned more over the past year in one of these regexs.</li>
+						<li>But onto the good stuff, improving performance of your regexs.</li>
+					</ul>
+				</aside>
+			</section>
+			<section>
+				<h3>Current State of Regex in Stata</h3>
+				<ul>
+					<li>regexm - Replaced in Stata 18</li>
+					<li>ustrregexm - Use if you need Unicode support</li>
+					<li>regexmatch - Use if you don't need Unicode support</li>
+				</ul>
+				<aside class="notes">
+					<ul>
+						<li>The first is based on Henry Spencer's NFA regex algorithm which is a byte stream regex.</li>
+						<li>The second is built using the ICU library.  Some unicode characters require multiple bytes to represent them.</li>
+						<li>The most recent addition is built using the Boost library which focuses on byte stream regex.</li>
+						<li>All provide slightly different approaches to regular expressions with the unicode vs byte stream distinction being important.</li>
+					</ul>
+				</aside>
+			</section>
+		</section>
+
+		<!-- How Regular Expressions Work -->
+		<section>
+			<!-- Components/Taxonomy of Regex syntax -->
+			<section>
+				<h3>Components</h3>
+				<ul>
+					<li>Groups - Capturing and named capturing groups and Non-capturing groups</li>
+					<li>Positions - Word boundaries and look ahead/behind</li>
+					<li>Quantifiers - Greedy, reluctant, & possessive</li>
+					<li>Characters - Metacharacters and String Literals</li>
+					<li>Types - Character sets, categories, and properties</li>
+				</ul>
+				<aside class="notes">
+					<ul>
+						<li>I'm primarily going to focus on the Boost library, so some implementation specifics may be different using ICU.</li>
+						<li>I've included slides with information about characters and types in the deck for anyone interested.</li>
+						<li>However, for the sake of brevity, I am going to focus on groups, quantifiers, and positions since they affect performance.</li>
+						<li>Groups should generally be used when you need to capture specific parts of the string.</li>
+						<li>Quantifiers provide the way to define the number of times a patter repeats, if at all, as well as how the matching is performed.</li>
+						<li>Positions are used to match locations in a string.</li>
+						<li>Characters are individual characters that are either literal or convey additional meaning</li>
+						<li>Types are ways of referencing groups of characters instead of specifying the characters individually.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Grouping -->
+			<section>
+				<h3>Groups</h3>
+				<table class="r-fit-text">
+					<thead>
+						<td>Syntax</td><td>Group Type</td><td>Functionality</td>
+					</thead>
+					<tbody>
+					<tr>
+						<td><b style="color: yellow;">(</b> ... )</td><td>Capture</td><td>Allows referencing captured material with \# where # is the group</td>
+					</tr>
+					<tr>
+						<td><b style="color: yellow;">(?&lt;name&gt;</b> ... )</td><td>Named Capture</td><td>Reference a capture group by assigned name</td>
+					</tr>
+					<tr>
+						<td><b style="color: yellow;">(?:</b> ... )</td><td>Non-Capturing</td><td>Prevents capturing the group contents</td>
+					</tr>
+					<tr>
+						<td><b style="color: yellow;">(?></b> ... )</td><td>Atomic Group</td><td>Prevents backtracking in the group</td>
+					</tr>
+					</tbody>
+				</table>
+				<aside class="notes">
+					<ul>
+						<li>The first two groups allow you to reference the contents of the capture group later.</li>
+						<li>The third allows you to use parentheses without the performance penality associated with capture groups.</li>
+						<li>The fourth prevents backtracking into the subexpression if it fails later.</li>
+						<li>For capture groups to work, they need to allocate memory to store the captured results, which results in a performance penalty when you don't need to reference the captured group.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Positional elements -->
+			<section>
+				<h3>Positions</h3>
+				<table>
+					<thead>
+					<td>Syntax</td><td>Type</td><td>Direction/Position</td>
+					</thead>
+					<tbody>
+					<tr><td><b style="color: yellow;">(?=</b> ... )</td><td>Positive</td><td>Ahead</td></tr>
+					<tr><td><b style="color: yellow;">(?&lt;=</b> ... )</td><td>Positive</td><td>Behind</td></tr>
+					<tr><td>\b</td><td>Positive</td><td>Word Boundary</td></tr>
+					<tr><td><b style="color: yellow;">(?!</b> ... )</td><td>Negative</td><td>Ahead</td></tr>
+					<tr><td><b style="color: yellow;">(?&lt;!</b> ... )</td><td>Negative</td><td>Behind</td></tr>
+					<tr><td>\B</td><td>Negative</td><td>Word Boundary</td></tr>
+					</tbody>
+				</table>
+				<p>Word Boundary Example: @b#cd = [@<b style="color: yellow;">,</b> b<b style="color: yellow;">,</b> #<b style="color: yellow;">,</b> c, d<b style="color: yellow;">]</b></p>
+				<aside class="notes">
+					<ul>
+						<li>Lookaheads are available to test for the presence or absence of a subexpression to the right of the current position.</li>
+						<li>Lookbehinds do the same, but in the opposite direction.  Support for lookbehinds varies and may impose distance limits that lookaheads do not impose.</li>
+						<li>Word boundaries do not match characters at all.  But match position immediately prior to a word character.</li>
+						<li>In the example above, the word boundary is basically matching the comma between the @ symbol and letter b if you think of the string as an array of characters.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Quantifiers -->
+			<section>
+				<h3>Quantifiers</h3>
+				<table class="r-fit-text">
+					<thead>
+					<td>Trait</td><td>Greedy</td><td>Lazy</td><td>Possessive</td>
+					</thead>
+					<tbody>
+					<tr><td>Backtracking</td><td>Yes</td><td>Yes</td><td style="background-color: fuchsia; color: black;">No</td></tr>
+					<tr><td>Consumption</td><td>As long as possible</td><td style="background-color: yellow; color: black;">As short as possible</td><td>As much as possible</td></tr>
+					<tr><td>Zero or One</td><td>?</td><td>??</td><td>?+</td></tr>
+					<tr><td>Zero or More</td><td>*</td><td>*?</td><td>*+</td></tr>
+					<tr><td>One or More</td><td>+</td><td>+?</td><td>++</td></tr>
+					<tr><td>Exactly #</td><td>{#}</td><td>{#}?</td><td>{#}+</td></tr>
+					<tr><td>At Least #</td><td>{#,}</td><td>{#,}?</td><td>{#,}+</td></tr>
+					<tr><td>In [#, #]</td><td>{#, #}</td><td>{#, #}?</td><td>{#, #}+</td></tr>
+					</tbody>
+				</table>
+				<aside class="notes">
+					<ul>
+						<li>Greedy quantifiers will match every possible character that they can, and then will start back tracking.</li>
+						<li>Lazy quantifiers behave differently in that they match the shortest amount of text possible.</li>
+						<li>Possessive quantifiers, and by relation atomic groups, prevent backtracking.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Matching -->
+			<section>
+				<h3>Matching (adapted from Maddock (2013)</h3>
+				<ol style="font-size: smaller !important;">
+					<li>Find the first match and return it if there is only one.</li>
+					<li>If more than one match, find the longest match including all ties.</li>
+					<li>If there is only one longest match, return it.  Else, if there are no groups, return the first match.</li>
+					<li>If there are groups, find the first match for the first group and any ties and return it if there is only one.</li>
+					<li>If more than one match, find the longest match for the group and any ties, return it if there is only one.</li>
+					<li>Repeat the process for each group.</li>
+					<li>If there is still more than one match, return the first one found.</li>
+				</ol>
+				<aside class="notes">
+					<ul>
+						<li>This illustrates how groups can affect performance, as well as explaining how matching works.</li>
+						<li>This also partly illustrates a bit about how backtracking works.</li>
+						<li>While extremely useful in some circumstances, backtracking can be the biggest barrier to performance.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Backtracking -->
+			<section>
+				<h3>Backtracking</h3>
+				<!-- Try creating a sequence diagram to illustrate this -->
+				<object type="image/svg+xml" data="img/backtracking.svg"></object>
+				<aside class="notes">
+					<ul>
+						<li>This is how greedy quantifiers can kill performance</li>
+						<li>When there are nested greedy quantifiers, catastrophic backtracking can occur which means an exponential growth in the number of permutations tested before failing the regex.</li>
+						<li>Remember that if you have nested quantifiers, you can use atomic groups or possessive quantifiers to prevent backtracking.</li>
+						<li>Typical guidance tends to favor the use of atomic groups over possessive quantifiers, but under the hood they generally function identically</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Metacharacters and String Literals -->
+			<section>
+				<h3>Characters</h3>
+				<table class="r-fit-text">
+					<thead>
+					<td>Metacharacter</td><td>Meaning</td><td>Notes</td>
+					</thead>
+					<tbody>
+					<tr><td>^</td><td>Start of String</td><td>First Character in Regex</td></tr>
+					<tr><td>^</td><td>Not/Negation</td><td>First Character in Character Set</td></tr>
+					<tr><td>$</td><td>End of String</td><td>Use the escape character to avoid eval as global</td></tr>
+					<tr><td>\</td><td>Escape</td><td>Interpret metacharacter as literal</td></tr>
+					<tr><td>()</td><td>Grouping</td><td>See notes on grouping above</td></tr>
+					<tr><td>.</td><td>Any Character</td><td></td></tr>
+					<tr><td>|</td><td>Alternates</td><td>Logical OR</td></tr>
+					<tr><td>?</td><td>Matching</td><td>[0, 1] times</td></tr>
+					<tr><td>*</td><td>Matching</td><td>[0, &infin;) times</td></tr>
+					<tr><td>+</td><td>Matching</td><td>[1, &infin;) times</td></tr>
+					<tr><td>{#}</td><td>Matching</td><td>Exactly # times</td></tr>
+					<tr><td>{#, }</td><td>Matching</td><td>[#, &infin;) times</td></tr>
+					<tr><td>{#a, #b}</td><td>Matching</td><td>[#a, #b] times</td></tr>
+					</tbody>
+				</table>
+				<aside class="notes">
+					<ul>
+						<li>Some metacharacters have a few different meanings and there are others not listed here that are used less frequently</li>
+						<li>The caret has the biggest implications since it functions completely differently inside a character class/set vs its behavior as an anchor.</li>
+						<li></li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Character classes -->
+			<section>
+				<!-- Types - Character categories, classes, sets, and properties
+                Provide links to Boost and ICU documentation with different features that can be used
+                -->
+				<h3>More Characters</h3>
+				<table class="r-fit-text">
+					<thead>
+					<td>Metacharacter</td><td>Meaning</td><td>Notes</td>
+					</thead>
+					<tbody>
+					<tr><td>[ ]</td><td>Character set</td><td>To match any of the characters in that position</td></tr>
+					<tr><td>[: :]</td><td>Character Class</td><td>Place term/ID between colons to use predefined sets of characters</td></tr>
+					<tr><td>[. .]</td><td>Collating Elements</td><td>For digraphs or other locale dependent collating elements (e.g., named unicode characters)</td></tr>
+					<tr><td>[= =]</td><td>Equivalence Class</td><td>To reference any character or collating element with the same primary sort key as the collating element referenced</td></tr>
+					<tr><td><b style="color: yellow;">\p{</b> ... }</td><td>Positive Character Property</td><td>Matches any character with the specified property</td></tr>
+					<tr><td><b style="color: yellow;">\P{</b> ... }</td><td>Negated Character Property</td><td>Matches any character that does not have the specified property</td></tr>
+					</tbody>
+				</table>
+				<aside class="notes">
+					<ul>
+						<li></li>
+						<li></li>
+						<li></li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Character sets -->
+			<section>
+				<!-- Types - Character categories, classes, sets, and properties
+                Provide links to Boost and ICU documentation with different features that can be used
+                -->
+				<h3>Types</h3>
+				<h4>Character sets</h4>
+				<ul class="r-fit-text">
+					<li>[ ... ] - defines the character set</li>
+					<li><b>All members of the set are equivalent for matching purposes</b></li>
+					<li><b>DO NOT USE THE PIPETTE CHARACTER '|' WITHOUT AN ESCAPE</b></li>
+					<li><b>Character sets match one (1) character in the regex and one character only. Quantifiers modify this.</b></li>
+					<li>May contain individual characters, character classes, properties (general and unicode), ranges, unicode code points, and unicode blocks</li>
+				</ul>
+				<aside class="notes">
+					<ul>
+						<li>There is no reason to ever use an unescaped pipette character in a character class since all members of the set are considered to be equivalent.</li>
+						<li>Be careful to ensure that the values included in the set are truly equivalent for your purposes.</li>
+						<li>When used with appropriate quantifiers, character sets can improve performance as long as the members are truly equivalent.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Character categories -->
+			<section>
+				<!-- Types - Character categories, classes, sets, and properties
+                Provide links to Boost and ICU documentation with different features that can be used
+                -->
+				<h3>Types</h3>
+				<h4>Character categories</h4>
+				<table style="font-size: 1rem !important;">
+					<thead>
+					<td>Class</td><td>Definition</td><td>Aliases</td>
+					</thead>
+					<tbody>
+					<tr><td>alnum</td><td>Any alphabetic character or number</td><td></td></tr>
+					<tr><td>alpha</td><td>Any alphabetic character</td><td></td></tr>
+					<tr><td>blank</td><td>White space excluding line separators</td><td></td></tr>
+					<tr><td>cntrl</td><td>Control characters (typically non-printable)</td><td></td></tr>
+					<tr><td>digit</td><td>Numbers</td><td>d</td></tr>
+					<tr><td>graph</td><td>Any graphical character</td><td></td></tr>
+					<tr><td>lower</td><td>Any lower case character</td><td>l</td></tr>
+					<tr><td>print</td><td>Any printable character</td><td></td></tr>
+					<tr><td>punct</td><td>Any punctuation character</td><td></td></tr>
+					<tr><td>space</td><td>Any white space character</td><td>s</td></tr>
+					<tr><td>unicode</td><td>Any character with a code point > 255</td><td></td></tr>
+					<tr><td>upper</td><td>Any upper case character</td><td>u</td></tr>
+					<tr><td>word</td><td>Any word character (alnum + _)</td><td>w</td></tr>
+					<tr><td>xdigit</td><td>Any hexadecimal digit character</td><td></td></tr>
+					</tbody>
+				</table>
+				<p style="font-size: .65rem !important;">Note: These are always supported when using Boost-based regex.</p>
+				<aside class="notes">
+					<ul>
+						<li>Aliases can be used by prefixing the alias with the escape character</li>
+						<li>To use the character class name use escape + p followed by curly braces containing the name (ex. \p{punct})</li>
+						<li></li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Character properties -->
+			<section>
+				<!-- Types - Character categories, classes, sets, and properties
+                Provide links to Boost and ICU documentation with different features that can be used
+                -->
+				<h3>Types</h3>
+				<h4>Properties</h4>
+				<ul>
+					<li>Will only apply to <code>ustrregex*</code> commands.</li>
+					<li>See documentation in <a href="https://unicode-org.github.io/icu/userguide/strings/unicodeset.html" target="_blank">ICU library</a> for unicode properties</li>
+					<li>Properties can include scripts/alphabetic systems, emojis, and letters with diacritics, among many others</li>
+					<li>This can be particularly useful when working with string data from multiple countries and social media &#128521;</li>
+				</ul>
+				<aside class="notes">
+					<ul>
+						<li>Character properties are defined in the Unicode standard, so they generally won't apply to boost-based regex (unless using Boost's unicode functionality)</li>
+						<li>If you know you are working with data containing unicode characters, using properties can make it much easier to find the specific text you need.</li>
+						<li></li>
+					</ul>
+				</aside>
+			</section>
+		</section>
+
+		<!-- Performance improvement -->
+		<!-- Example Data from:
+            https://www.kaggle.com/datasets/carlosgdcj/genius-song-lyrics-with-language-information/data
+        -->
+		<section>
+			<section data-autoslide="3500">
+				<h3>How can you boost the performance of your regexs?</h3>
+			</section>
+			<!-- Boost for speed Ustr for robustness -->
+			<section>
+				<h3>Use Boost for Speed* and Unicode for Robustness</h3>
+<pre class="r-fit-text"><code style="font-size: 1rem !important;" data-line-numbers="3,4,6,7|9,10,12,13|14,15,17|14,16,18|19-20">. #d ;
+. loc word `: word 5 of `t''; timer clear; timer on 1;
+. count if ustrregexm(lyrics, "\b(`word')\s\1\b");
+884
+. timer off 1; timer on 2;
+. count if regexmatch(lyrics, "\b(`word')\s\1\b");
+884
+. timer off 2; timer on 3;
+. count if ustrregexm(lyrics, "\b(\w+)\s\1\b");
+905,421
+. timer off 3; timer on 4;
+. count if regexmatch(lyrics, "\b(\w+)\s\1\b");
+887,740
+. timer off 4; timer list;
+   1:     19.20 /        1 =      19.1990
+   2:     16.61 /        1 =      16.6140
+   3:    252.99 /        1 =     252.9850
+   4:    247.90 /        1 =     247.8950
+. count if ustrregexm(lyrics, "\P{ASCII}")
+  2,745,169
+</code></pre>
+				<aside class="notes">
+					<ul>
+						<li>This statement doesn't generalize to all situations, but if you know you only have ASCII string data it will generally be true.</li>
+						<li>Once I moved to matching any consecutive word, we see a difference in what the two engines produce.</li>
+						<li>THIS IS NOT A BUG.  IT IS A FEATURE.</li>
+						<li>Remember that not all Unicode characters are encoded with a single byte.</li>
+						<li>Lastly, I show how many records in the file contain non-ASCII characters which is another way of identifying Unicode specific characters.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Avoid Greedy Quantifiers When Possible -->
+			<section>
+				<h3>Avoid Greedy Quantifiers When Possible</h3>
+				<ul class="r-fit-text">
+					<li>Computational cost increases as a function of n, length of the strings, and the amount of backtracking needed.</li>
+					<li>As an alternative, when <code>*</code> or <code>+</code> appears in your regex, you could consider using:</li>
+					<ol>
+						<li>Lazy/Non-Greedy or Possessive Quantifiers</li>
+						<li>Multiple Regular Expressions</li>
+					</ol>
+				</ul>
+				<aside class="notes">
+					<ul>
+						<li>Remember that greedy matching will match from that point until the end of the string if preceded by `.`</li>
+						<li>Non-greedy quantifiers either prevent backtracking or force matching until the next specified character is matched.</li>
+						<li>Sometimes it is not possible to avoid using greedy quantifiers.</li>
+						<li>In short, if it is possible to use possessive or lazy quantifiers for your regex, it should provide some performance gain.</li>
+						<li>If the only criteria is a simple logical AND, splitting the regex into two or more regexs can improve performance.</li>
+						<li>This requires that the order of the material you are attempting to match does not matter.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Non-capture groups -->
+			<section>
+				<h3>Unless needed, avoid capture and named capture groups</h3>
+				<pre class="r-fit-text">
+					<code style="font-size: 1rem !important;" data-line-numbers="2-10|11-19|20-27|29,32,35,38|30,33,36|31,34,37">. timer clear; version 18; timer on 1;
+. count if ustrregexm(lyrics, `"(`: subinstr loc t " " ")|(", all')"');
+1,074,729
+. timer off 1; timer on 2;
+. count if regexmatch(lyrics, `"(`: subinstr loc t " " ")|(", all')"');
+1,074,729
+. timer off 2; version 16; timer on 3;
+. count if regexm(lyrics, `"(`: subinstr loc t " " ")|(", all')"');
+1,074,729
+. timer off 3; version 18; timer on 4;
+. count if ustrregexm(lyrics, `"(?:`: subinstr loc t " " ")|(?:", all')"');
+1,074,729
+. timer off 4; timer on 5;
+. count if regexmatch(lyrics, `"(?:`: subinstr loc t " " ")|(?:", all')"');
+1,074,729
+. timer off 5; version 16; timer on 6;
+. count if regexm(lyrics, `"(?:`: subinstr loc t " " ")|(?:", all')"');
+regexp: ?+* follows nothing
+. timer off 6; version 18; timer on 7;
+. count if ustrregexm(lyrics, `"`: subinstr loc t " " "|", all'"');
+1,074,729
+. timer off 7; timer on 8;
+. count if regexmatch(lyrics, `"`: subinstr loc t " " "|", all'"');
+1,074,729
+. timer off 8; version 16; timer on 9;
+. count if regexm(lyrics, `"`: subinstr loc t " " "|", all'"');
+1,074,729
+. timer off 9; version 18; timer list;
+   1:    113.23 /        1 =     113.2280
+   2:     90.53 /        1 =      90.5250
+   3:    325.08 /        1 =     325.0800
+   4:     79.10 /        1 =      79.0960
+   5:     81.22 /        1 =      81.2160
+   6:      1.67 /        1 =       1.6660
+   7:     78.57 /        1 =      78.5720
+   8:     75.17 /        1 =      75.1670
+   9:    173.61 /        1 =     173.6060
+
+					</code>
+				</pre>
+				<aside class="notes">
+					<ul>
+						<li>Clearly, the newer regex engines perform better than the older regex engine.</li>
+						<li>Additionally, you can see clear performance gains moving from grouped captures to non-capture groups to alternatives.</li>
+						<li>Capture groups will always take longer because the engine needs to allocate memory and potentially store data in addition to testing for the matches.</li>
+						<li>While it may make it easier to read your regex to use groups, using non-capture groups can provide the same organizational benefit without the computational overhead.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Factor out Common elements -->
+			<section>
+				<h3>Factor out common elements</h3>
+				<pre class="r-fit-text"><code style="font-size: 1rem !important;" data-line-numbers="2,3,5,6|8,9,11,12|14,16|15,17,19">. timer clear; timer on 1;
+. count if ustrregexm(lyrics, "(?:losing|loving|looser|lost|lottery)");
+473,024
+. timer off 1; timer on 2;
+. count if regexmatch(lyrics, "(?:losing|loving|looser|lost|lottery)");
+473,024
+. timer off 2; timer on 3;
+. count if ustrregexm(lyrics, "lo(?:sing|ving|oser|st|ttery)");
+473,024
+. timer off 3; timer on 4;
+. count if regexmatch(lyrics, "lo(?:sing|ving|oser|st|ttery)");
+473,024
+. timer off 4; timer list;
+   1:     25.25 /        1 =      25.2450
+   2:     43.42 /        1 =      43.4170
+   3:     20.40 /        1 =      20.4030
+   4:     25.85 /        1 =      25.8520
+				</code></pre>
+				<aside class="notes">
+					<ul>
+						<li>This is especially important with the initial characters since it allows the regex to fail faster.</li>
+						<li>Also remember to use non-capture groups, see previous slide for examples.</li>
+						<li>Factoring can also be effective for common suffixes and will yield better performance when the suffixes are longer in length or there are variants that start a few characters into a common starting point.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Use Non-Greedy Quantifiers When Possible -->
+			<section>
+				<h3>Use Lazy Quantifiers When Possible</h3>
+				<pre class="r-fit-text"><code style="font-size: 1rem !important;" data-line-numbers="3,4,6,7|9,10,12,13|15,17|16,18,20">. loc w1 $bandwidthex ; loc w2 `: word 5 of `t'' ;
+. timer clear; timer on 1;
+. count if ustrregexm(lyrics, "\b(?:`w1'\W+(?:\w+\W+){0,10}`w2'|`w2'\W+(?:\w+\W+){0,10}`w1')\b");
+235,289
+. timer off 1; timer on 2;
+. count if regexmatch(lyrics, "\b(?:`w1'\W+(?:\w+\W+){0,10}`w2'|`w2'\W+(?:\w+\W+){0,10}`w1')\b");
+235,702
+. timer off 2; timer on 3;
+. count if ustrregexm(lyrics, "\b(?:`w1'\W+(?:\w+\W+){0,10}?`w2'|`w2'\W+(?:\w+\W+){0,10}?`w1')\b");
+235,289
+. timer off 3; timer on 4;
+. count if regexmatch(lyrics, "\b(?:`w1'\W+(?:\w+\W+){0,10}?`w2'|`w2'\W+(?:\w+\W+){0,10}?`w1')\b");
+235,702
+. timer off 4; timer list;
+   1:     48.15 /        1 =      48.1450
+   2:     99.40 /        1 =      99.3960
+   3:     44.17 /        1 =      44.1680
+   4:     99.23 /        1 =      99.2300
+				</code></pre>
+				<aside class="notes">
+					<ul>
+						<li>This is an example of matching two words that appear within 10 words of each other, regardless of order.</li>
+						<li>In the first example, the {0, 10} will try to find ten words between the first and second word and then match the second word.</li>
+						<li>Once that fails, it will backtrack to the ninth word...and so on</li>
+						<li>Using the possessive quantifier, we can tell the regex to not backtrack, which reverses the order from looking at the immediate word following the first until the 11th word following the first.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- Use Possessive Quantifiers Carefully -->
+			<section>
+				<h3>Use Possessive Quantifiers Carefully</h3>
+				<pre style="font-size: small !important;"><code style="font-size: .75rem !important;"  data-line-numbers="1-32|46,52,57,59|49,55,58,60|62-74">python
+# import a library to generate random objects
+from faker import Faker
+# This will vary the number of levels of domains
+import random
+# Import the Stata API module
+from sfi import Data
+# Get the number of observations in the dataset
+obs = Data.getObsTotal()
+# Initialize the Faker class object
+fake = Faker()
+# Set the pseudorandom object generator seed
+fake.seed(7779311)
+# Set the pseudorandom number generator seed
+random.seed(8675309)
+# Pre-allocate a list that will store the email addresses
+emails = [None] * obs
+# Loop over observation indices
+for i in range(obs):
+    # Select a random number of domain & subdomain levels to test
+    levels = random.randint(1, 5)
+    # Generate the email address and store it in the list object
+    emails[i] = fake.user_name() + '@' + fake.domain_name(levels)
+
+# Add a variable to store the email addresses
+Data.addVarStrL('email')
+
+# Store the email addresses
+Data.store('email', None, emails)
+
+# End the python interpreter
+end
+
+// Compress the email variable
+compress email
+
+// Add the random email addresses to the end of the lyrics
+g strL elyrics = lyrics + " " + email
+
+// Get the storage type for email
+loc t : type email
+
+#d ;
+timer clear; timer on 1;
+g `t' etest1 = ustrregexs(0) if ustrregexm(elyrics,
+"\b[\w\p{P}]+?@[[:alnum:]][-[:alnum:]]{1,62}\.(?:[[:alnum:]][-[:alnum:]]{1,62}\.?){1,5}\b");
+timer off 1; timer on 2;
+g `t' etest2 = regexcapture(0) if regexmatch(elyrics,
+"\b[\w\p{P}]+?@[[:alnum:]][-[:alnum:]]{1,62}\.(?:[[:alnum:]][-[:alnum:]]{1,62}\.?){1,5}\b");
+timer off 2; timer on 3;
+g `t' etest3 = ustrregexs(0) if ustrregexm(elyrics,
+"\b[\w\p{P}]++@[[:alnum:]][-[:alnum:]]{1,62}\.(?:[[:alnum:]][-[:alnum:]]{1,62}\.?){1,5}+\b");
+timer off 3; timer on 4;
+g `t' etest4 = regexcapture(0) if regexmatch(elyrics,
+"\b[\w\p{P}]++@[[:alnum:]][-[:alnum:]]{1,62}\.(?:[[:alnum:]][-[:alnum:]]{1,62}\.?){1,5}+\b");
+timer off 4; timer list;
+   1:    277.55 /        1 =     277.5490
+   2:    201.91 /        1 =     201.9100
+   3:    314.44 /        1 =     314.4410
+   4:    164.02 /        1 =     164.0230
+
+. cap noi assert etest1 == email
+1,168 contradictions in 5,134,856 observations
+assertion is false
+. cap noi assert etest2 == email
+428 contradictions in 5,134,856 observations
+assertion is false
+. cap noi assert etest3 == email
+5,134,856 contradictions in 5,134,856 observations
+assertion is false
+. cap noi assert etest4 == email
+379 contradictions in 5,134,856 observations
+assertion is false
+
+						</code></pre>
+				<aside class="notes">
+					<ul>
+						<li>Possessive quantifiers do the best work on examples that will eventually fail.</li>
+						<li>The reason they perform best in those cases is that they never backtrack.</li>
+						<li>However, you can also get some performance increases in instances where there will be matches.</li>
+						<li>The ICU regex engine may not fully support possessive quantifiers, leading to all failures to capture the email address</li>
+						<li>In the other cases, it seems that the difference is due to email addresses showing up prior to the fake ones that were generated and added to the end.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- First alternative wins -->
+			<section>
+				<h3>Order Alternatives in the Most likely Order in the data</h3>
+				<pre class="r-fit-text">
+					<code style="font-size: small !important;" data-line-numbers="2-14|15,16|17-28|29-33">. timer clear
+. timer on 1;
+. qui: g ustralt1 = ustrregexs(1) if _n == 105519 &				 ///
+		ustrregexm(lyrics, "(`: word 7 of `t''|`: word 4 of `t'')");
+. timer off 1; timer on 2;
+. qui: g ustralt2 = ustrregexs(1) if _n == 105519 &				 ///
+		ustrregexm(lyrics, "(`: word 4 of `t''|`: word 7 of `t'')");
+. timer off 2; timer on 3;
+. qui: g bstalt1 = regexcapture(1) if _n == 105519 &///
+		regexmatch(lyrics, "(`: word 7 of `t''|`: word 4 of `t'')");
+. timer off 3; timer on 4;
+. qui: g bstalt2 = regexcapture(1) if _n == 105519 &///
+		regexmatch(lyrics, "(`: word 4 of `t''|`: word 7 of `t'')");
+. timer off 4;
+. di strlen(lyrics[105519]);
+8714
+. if ustralt1[105519] == "`: word 7 of `t''" di "word 7 matched";
+. if ustralt1[105519] == "`: word 4 of `t''" di "word 4 matched";
+word 4 matched
+. if ustralt2[105519] == "`: word 7 of `t''" di "word 7 matched";
+. if ustralt2[105519] == "`: word 4 of `t''" di "word 4 matched";
+word 4 matched
+. if bstalt1[105519] == "`: word 7 of `t''" di "word 7 matched";
+. if bstalt1[105519] == "`: word 4 of `t''" di "word 4 matched";
+word 4 matched
+. if bstalt2[105519] == "`: word 7 of `t''" di "word 7 matched";
+. if bstalt2[105519] == "`: word 4 of `t''" di "word 4 matched";
+word 4 matched
+. timer list;
+   1:     25.37 /        1 =      25.3660
+   2:     25.33 /        1 =      25.3320
+   3:     22.85 /        1 =      22.8500
+   4:     22.73 /        1 =      22.7270
+					</code>
+				</pre>
+				<aside class="notes">
+					<ul>
+						<li>Regardless of the length of the alternative, the first to match is going to be returned.</li>
+						<li>Because alternatives are seen as equivalents, you can think of them all having equivalent lengths of a single unit.</li>
+						<li>Had the regex included `.*` at the beginning, the matches may have been reversed.</li>
+						<li>Note how long this takes for a single string that is roughly 9000 characters in length.</li>
+					</ul>
+				</aside>
+			</section>
+			<!-- When all else fails -->
+			<section data-autoslide="3500">
+				<h3>If all else fails...</h3>
+				<aside class="notes">
+					<ul>
+						<li></li>
+						<li></li>
+						<li></li>
+					</ul>
+				</aside>
+			</section>
+			<section>
+				<h3>Try one of the following:</h3>
+				<ul>
+					<li>IBM Granite: <a href="https://www.ibm.com/granite/playground/" target="_blank">https://www.ibm.com/granite/playground/</a></li>
+					<li>Microsoft Copilot: <a href="https://copilot.microsoft.com/" target="_blank">https://copilot.microsoft.com/</a></li>
+					<li>Google Gemini: <a href="https://gemini.google.com" target="_blank">https://gemini.google.com</a></li>
+					<li>Meta Code Llama: <a href="https://www.llama.com/code-llama/" target="_blank">https://www.llama.com/code-llama/</a></li>
+				</ul>
+				<aside class="notes">
+					<ul>
+						<li>Unlike ChatGPT, these AI models were developed and trained with at least some emphasis on code development.</li>
+						<li>Given the amount of regex in the wild, these can be useful resources to figure out how to accomplish some of the trickier regular expressions you may want or need to implement.</li>
+						<li>However, you can gain performance in many instances by learning more about regular expressions to avoid interrupting your workflow to reach out to one of these external resources.</li>
+					</ul>
+				</aside>
+			</section>
+		</section>
+		<section class="r-fit-text">
+			<h3>Example Data</h3>
+				<p style="font-size: .5em !important;"><a href="https://www.kaggle.com/datasets/carlosgdcj/genius-song-lyrics-with-language-information/data" target="_blank">https://www.kaggle.com/datasets/carlosgdcj/genius-song-lyrics-with-language-information/data</a></p>
+			<h3>References</h3>
+				<p style="font-size: .7em !important;">Friedl, J. E. F. (2006).  <i>Mastering regular expressions.</i>  3rd Ed.  O'Reilly</p>
+				<p style="font-size: .7em !important;">Goyvaerts, J., &amp; Levithan, S. (2012). <i>Regular expressions cookbook.</i>  2nd Ed.  <br>O'Reilly</p>
+				<p style="font-size: .7em !important;">Maddock, J. (2013).  <a href="https://www.boost.org/doc/libs/1_88_0/libs/regex/doc/html/boost_regex/syntax/leftmost_longest_rule.html" target="_blank">The leftmost longest rule.</a></p>
+			<h3>Other Resources</h3>
+				<p><a href="https://regex101.com/debugger" target="_blank">Regex 101 Debugger</a></p>
+		</section>
+
+	</div>
+
+</div>
+
+<script src="dist/reveal.js"></script>
+<script src="plugin/zoom/zoom.js"></script>
+<script src="plugin/notes/notes.js"></script>
+<script src="plugin/search/search.js"></script>
+<script src="plugin/markdown/markdown.js"></script>
+<script src="plugin/highlight/highlight.js"></script>
+<script>
+
+	// Also available as an ES module, see:
+	// https://revealjs.com/initialization/
+	Reveal.initialize({
+		controls: true,
+		progress: true,
+		center: true,
+		hash: true,
+
+		// Learn about plugins: https://revealjs.com/plugins/
+		plugins: [ RevealZoom, RevealNotes, RevealSearch, RevealMarkdown, RevealHighlight ]
+	});
+
+</script>
+
+</body>
+</html>
