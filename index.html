@@ -42,8 +42,9 @@
 				<ul>
 					<li>Use Boost for Speed and Unicode for Robustness</li>
 					<li>Avoid Greedy Quantifiers When Possible</li>
-					<li>Use Non-Capture Groups When Capturing is Unnecessary</li>
+					<li>Avoid Capture Groups if You Do Not Need to Capture the Match</li>
 					<li>Factor Out Common Elements</li>
+					<li>Use Lazy Quantifiers When Possible</li>
 					<li>Use Possessive Quantifiers Carefully</li>
 					<li>The Order of Alternatives Matters</li>
 				</ul>
@@ -120,22 +121,22 @@
 			<!-- Grouping -->
 			<section>
 				<h3>Groups</h3>
-				<table class="r-fit-text">
+				<table class="r-fit-text" >
 					<thead>
 						<td>Syntax</td><td>Group Type</td><td>Functionality</td>
 					</thead>
 					<tbody>
 					<tr>
-						<td><b style="color: yellow;">(</b> ... )</td><td>Capture</td><td>Allows referencing captured material with \# where # is the group</td>
+						<td><b style="color: yellow;">(</b> ... <b style="color: yellow;">)</b></td><td>Capture</td><td>Can reference captured content with \#</td>
 					</tr>
 					<tr>
-						<td><b style="color: yellow;">(?&lt;name&gt;</b> ... )</td><td>Named Capture</td><td>Reference a capture group by assigned name</td>
+						<td><span><b style="color: yellow;">(?&lt;name&gt;</b> ... <b style="color: yellow;">)</b></span></td><td>Named Capture</td><td>Assigns names to capture groups</td>
 					</tr>
 					<tr>
-						<td><b style="color: yellow;">(?:</b> ... )</td><td>Non-Capturing</td><td>Prevents capturing the group contents</td>
+						<td><b style="color: yellow;">(?:</b> ... <b style="color: yellow;">)</b></td><td>Non-Capturing</td><td>Prevents capturing the group contents</td>
 					</tr>
 					<tr>
-						<td><b style="color: yellow;">(?></b> ... )</td><td>Atomic Group</td><td>Prevents backtracking in the group</td>
+						<td><b style="color: yellow;">(?></b> ... <b style="color: yellow;">)</b></td><td>Atomic Group</td><td>Prevents backtracking in the group</td>
 					</tr>
 					</tbody>
 				</table>
@@ -440,7 +441,7 @@
 			</section>
 			<!-- Non-capture groups -->
 			<section>
-				<h3>Unless needed, avoid capture and named capture groups</h3>
+				<h3>Avoid Capture Groups if You Do Not Need to Capture the Match</h3>
 				<pre class="r-fit-text">
 					<code style="font-size: 1rem !important;" data-line-numbers="2-10|11-19|20-27|29,32,35,38|30,33,36|31,34,37">. timer clear; version 18; timer on 1;
 . count if ustrregexm(lyrics, `"(`: subinstr loc t " " ")|(", all')"');
@@ -520,7 +521,7 @@ regexp: ?+* follows nothing
 					</ul>
 				</aside>
 			</section>
-			<!-- Use Non-Greedy Quantifiers When Possible -->
+			<!-- Use Lazy Quantifiers When Possible -->
 			<section>
 				<h3>Use Lazy Quantifiers When Possible</h3>
 				<pre class="r-fit-text"><code style="font-size: 1rem !important;" data-line-numbers="3,4,6,7|9,10,12,13|15,17|16,18,20">. loc w1 $bandwidthex ; loc w2 `: word 5 of `t'' ;

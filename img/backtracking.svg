@@ -114,7 +114,7 @@
               class="actor actor-bottom" data-look="neo" filter="url(#drop-shadow)"/>
         <text x="1875" y="885.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
               dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-            <tspan x="1875" dy="0">End</tspan>
+            <tspan x="1875" dy="0" style="fill: yellow !important;">End</tspan>
         </text>
     </g>
     <g>
@@ -122,7 +122,7 @@
               class="actor actor-bottom" data-look="neo" filter="url(#drop-shadow)"/>
         <text x="1675" y="885.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
               dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-            <tspan x="1675" dy="0">g</tspan>
+            <tspan x="1675" dy="0" style="fill: yellow !important;">g</tspan>
         </text>
     </g>
     <g>
@@ -130,7 +130,7 @@
               class="actor actor-bottom" data-look="neo" filter="url(#drop-shadow)"/>
         <text x="1475" y="885.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
               dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-            <tspan x="1475" dy="0">n</tspan>
+            <tspan x="1475" dy="0" style="fill: yellow !important;">n</tspan>
         </text>
     </g>
     <g>
@@ -138,7 +138,7 @@
               class="actor actor-bottom" data-look="neo" filter="url(#drop-shadow)"/>
         <text x="1275" y="885.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
               dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-            <tspan x="1275" dy="0">i</tspan>
+            <tspan x="1275" dy="0" style="fill: yellow !important;">i</tspan>
         </text>
     </g>
     <g>
@@ -146,7 +146,7 @@
               class="actor actor-bottom" data-look="neo" filter="url(#drop-shadow)"/>
         <text x="1075" y="885.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
               dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-            <tspan x="1075" dy="0">s</tspan>
+            <tspan x="1075" dy="0" style="fill: yellow !important;">s</tspan>
         </text>
     </g>
     <g>
@@ -154,7 +154,7 @@
               class="actor actor-bottom" data-look="neo" filter="url(#drop-shadow)"/>
         <text x="875" y="885.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
               dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-            <tspan x="875" dy="0">s</tspan>
+            <tspan x="875" dy="0" style="fill: yellow !important;">s</tspan>
         </text>
     </g>
     <g>
@@ -162,7 +162,7 @@
               class="actor actor-bottom" data-look="neo" filter="url(#drop-shadow)"/>
         <text x="675" y="885.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
               dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-            <tspan x="675" dy="0">e</tspan>
+            <tspan x="675" dy="0" style="fill: yellow !important;">e</tspan>
         </text>
     </g>
     <g>
@@ -170,7 +170,7 @@
               class="actor actor-bottom" data-look="neo" filter="url(#drop-shadow)"/>
         <text x="475" y="885.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
               dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-            <tspan x="475" dy="0">r</tspan>
+            <tspan x="475" dy="0" style="fill: yellow !important;">r</tspan>
         </text>
     </g>
     <g>
@@ -178,7 +178,7 @@
               class="actor actor-bottom" data-look="neo" filter="url(#drop-shadow)"/>
         <text x="275" y="885.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
               dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-            <tspan x="275" dy="0">p</tspan>
+            <tspan x="275" dy="0" style="fill: yellow !important;">p</tspan>
         </text>
     </g>
     <g>
@@ -186,7 +186,7 @@
               class="actor actor-bottom" data-look="neo" filter="url(#drop-shadow)"/>
         <text x="75" y="885.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
               dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-            <tspan x="75" dy="0">regex ".*es"</tspan>
+            <tspan x="75" dy="0" style="fill: yellow !important;">regex ".*es"</tspan>
         </text>
     </g>
     <g>
@@ -202,7 +202,7 @@
             </defs>
             <text x="1875" y="32.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
                   dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-                <tspan x="1875" dy="0">End</tspan>
+                <tspan x="1875" dy="0" style="fill: yellow !important;">End</tspan>
             </text>
         </g>
     </g>
@@ -219,7 +219,7 @@
             </defs>
             <text x="1675" y="32.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
                   dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-                <tspan x="1675" dy="0">g</tspan>
+                <tspan x="1675" dy="0" style="fill: yellow !important;">g</tspan>
             </text>
         </g>
     </g>
@@ -236,7 +236,7 @@
             </defs>
             <text x="1475" y="32.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
                   dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-                <tspan x="1475" dy="0">n</tspan>
+                <tspan x="1475" dy="0" style="fill: yellow !important;">n</tspan>
             </text>
         </g>
     </g>
@@ -253,7 +253,7 @@
             </defs>
             <text x="1275" y="32.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
                   dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-                <tspan x="1275" dy="0">i</tspan>
+                <tspan x="1275" dy="0" style="fill: yellow !important;">i</tspan>
             </text>
         </g>
     </g>
@@ -270,7 +270,7 @@
             </defs>
             <text x="1075" y="32.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
                   dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-                <tspan x="1075" dy="0">s</tspan>
+                <tspan x="1075" dy="0" style="fill: yellow !important;">s</tspan>
             </text>
         </g>
     </g>
@@ -287,7 +287,7 @@
             </defs>
             <text x="875" y="32.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
                   dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-                <tspan x="875" dy="0">s</tspan>
+                <tspan x="875" dy="0" style="fill: yellow !important;">s</tspan>
             </text>
         </g>
     </g>
@@ -304,7 +304,7 @@
             </defs>
             <text x="675" y="32.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
                   dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-                <tspan x="675" dy="0">e</tspan>
+                <tspan x="675" dy="0" style="fill: yellow !important;">e</tspan>
             </text>
         </g>
     </g>
@@ -321,7 +321,7 @@
             </defs>
             <text x="475" y="32.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
                   dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-                <tspan x="475" dy="0">r</tspan>
+                <tspan x="475" dy="0" style="fill: yellow !important;">r</tspan>
             </text>
         </g>
     </g>
@@ -338,7 +338,7 @@
             </defs>
             <text x="275" y="32.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
                   dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-                <tspan x="275" dy="0">p</tspan>
+                <tspan x="275" dy="0" style="fill: yellow !important;">p</tspan>
             </text>
         </g>
     </g>
@@ -355,7 +355,7 @@
             </defs>
             <text x="75" y="32.5" style="text-anchor: middle; font-size: 1.75em; font-weight: bold;"
                   dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
-                <tspan x="75" dy="0">regex ".*es"</tspan>
+                <tspan x="75" dy="0" style="fill: yellow !important;">regex ".*es"</tspan>
             </text>
         </g>
     </g>
